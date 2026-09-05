@@ -8,6 +8,7 @@ import argparse
 
 import numpy as np
 
+from lddecode import __version__
 from lddecode.core import *
 from lddecode.lds import LdsWriter
 from lddecode.utils import *
@@ -15,12 +16,11 @@ from lddecode.utils_logging import *
 
 
 def main(args=None):
-    # Handle --version early before argparse requires positional arguments
-    check_args = args if args is not None else sys.argv[1:]
-    if "--version" in check_args or "-v" in check_args:
-        from lddecode import __version__
-        print(__version__)
-        sys.exit(0)
+    if args is None:
+        args = sys.argv[1:]
+
+    # Accept the pre-2026 misspelling "--fmpeg-options" for compatibility.
+    args = ["--ffmpeg-options" if a == "--fmpeg-options" else a for a in args]
 
     # Enable IO debug logging automatically in CI to help diagnose hangs when
     # ffmpeg fallback is used instead of ld-ldf-reader.
@@ -84,12 +84,14 @@ def main(args=None):
 
     parser.add_argument(
         "-F",
-        "--fmpeg-options",
+        "--ffmpeg-options",
         dest="ffmpeg_options",
         type=str,
         default=None,
         help="custom ffmpeg format options"
     )
+
+    parser.add_argument("-v", "--version", action="version", version=__version__)
 
     args = parser.parse_args(args)
 
@@ -100,13 +102,17 @@ def main(args=None):
         outname = "/dev/stdout"
 
     if args.pal and args.ntsc:
-        print("ERROR: Can only be PAL or NTSC")
+        print("ERROR: Can only be PAL or NTSC", file=sys.stderr)
+        sys.exit(1)
+
+    if filename != "-" and not os.path.exists(filename):
+        print(f"ERROR: Input file does not exist: {filename}", file=sys.stderr)
         sys.exit(1)
 
     try:
         loader = make_loader(filename, None)
     except ValueError as e:
-        print(e)
+        print(e, file=sys.stderr)
         sys.exit(1)
 
     makelds = True if outname[-3:] == "lds" else False
