@@ -86,6 +86,7 @@ ld-cut is a utility for cutting samples from raw RF LaserDisc captures (useful t
 
 ```
 usage: ld-cut [-h] [-s start] [-l length] [-S seek] [-E end] [-p] [-n]
+              [-C LDFCOMP] [-F FFMPEG_OPTIONS] [-v]
               infile outfile
 
 Extract a sample area from raw RF laserdisc captures. (Similar to ld-decode,
@@ -95,7 +96,7 @@ positional arguments:
   infile                source file
   outfile               destination file (recommended to use .lds or .ldf suffixes)
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -s start, --start start
                         rough jump to frame n of capture (default is 0)
@@ -105,6 +106,11 @@ optional arguments:
   -E end, --end end     cutting: last frame
   -p, --pal             source is in PAL format
   -n, --ntsc            source is in NTSC format
+  -C LDFCOMP, --ldf-compression-level LDFCOMP
+                        compression level for .ldf files
+  -F FFMPEG_OPTIONS, --ffmpeg-options FFMPEG_OPTIONS
+                        custom ffmpeg format options
+  -v, --version         show program's version number and exit
 ```
 
 Using ld-cut, you can do parallel .ldf encodings (optionally targeting different directories) using shell scripting pretty easily:

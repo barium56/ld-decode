@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
 import signal
 import sys
+import os
 import argparse
 import traceback
 import numpy as np
 
+from lddecode import __version__
 from lddecode.core import *
 from lddecode.utils import *
 from lddecode.utils_logging import init_logging
 
 
 def main(args=None):
-    # Handle --version early before argparse requires positional arguments
-    check_args = args if args is not None else sys.argv[1:]
-    if "--version" in check_args or "-v" in check_args:
-        from lddecode import __version__
-        print(__version__)
-        sys.exit(0)
     options_epilog = """FREQ can be a bare number in MHz, or a number with one of the case-insensitive suffixes Hz, kHz, MHz, GHz, fSC (meaning NTSC) or fSCPAL."""
     parser = argparse.ArgumentParser(
         description="Extracts audio and video from raw RF laserdisc captures",
@@ -109,7 +105,7 @@ def main(args=None):
         dest="noefm",
         action="store_true",
         default=False,
-        help="Disable EFM front end",
+        help="Disable digital audio (EFM) decoding",
     )
     parser.add_argument(
         "--preEFM",
@@ -258,7 +254,7 @@ def main(args=None):
         metavar="AFREQ",
         type=int,
         default=44100,
-        help="RF sampling frequency in source file (default is 44100hz)",
+        help="Analog audio output sample rate (default is 44100 Hz)",
     )
 
     parser.add_argument(
@@ -326,16 +322,23 @@ def main(args=None):
         help="Write the input portion being decoded to a .ldf file for bug reporting",
     )
 
+    parser.add_argument("-v", "--version", action="version", version=__version__)
+
     args = parser.parse_args(args)
     # print(args)
     filename = args.infile
     outname = args.outfile
     firstframe = args.start
     req_frames = args.length
+
     vid_standard = "PAL" if args.pal else "NTSC"
 
     if args.pal and (args.ntsc or args.ntscj):
-        print("ERROR: Can only be PAL or NTSC")
+        print("ERROR: Can only be PAL or NTSC", file=sys.stderr)
+        sys.exit(1)
+
+    if args.ntsc and args.ntscj:
+        print("ERROR: Can only be NTSC or NTSC-J", file=sys.stderr)
         sys.exit(1)
 
     # Resolve the analog audio output rate.  A negative value is interpreted
@@ -356,7 +359,6 @@ def main(args=None):
 
     # Safety check: ensure --write-test-ldf doesn't overwrite the input file
     if args.write_test_ldf is not None:
-        import os.path
         input_path = os.path.abspath(filename)
         output_path = os.path.abspath(args.write_test_ldf)
         if input_path == output_path:
@@ -393,16 +395,20 @@ def main(args=None):
         extra_options["PAL_V4300D_NotchFilter"] = True
 
     if vid_standard == "PAL" and args.AC3:
-        print("ERROR: AC3 audio decoding is only supported for NTSC")
+        print("ERROR: AC3 audio decoding is only supported for NTSC", file=sys.stderr)
         sys.exit(1)
 
     if args.lowband:
         extra_options["lowband"] = True
 
+    if filename != "-" and not os.path.exists(filename):
+        print(f"ERROR: Input file does not exist: {filename}", file=sys.stderr)
+        sys.exit(1)
+
     try:
         loader = make_loader(filename, args.inputfreq)
     except ValueError as e:
-        print(e)
+        print(e, file=sys.stderr)
         sys.exit(1)
 
     # Wrap the LDdecode creation so that the signal handler is not taken by sub-threads,
@@ -411,7 +417,6 @@ def main(args=None):
 
     logger = init_logging(outname + ".log")
 
-    from lddecode import __version__
     logger.debug("ld-decode version " + __version__)
 
     DecoderParamsOverride = {}
