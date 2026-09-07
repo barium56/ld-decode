@@ -254,7 +254,7 @@ def main(args=None):
         help='Input LDF file'
     )
     
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     
     # Validate start offset
     if args.start_offset < 0:
